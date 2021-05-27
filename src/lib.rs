@@ -12,8 +12,8 @@
 //! usage: 
 //! ```no_run
 //! # use serde::{Deserialize, Serialize};
-//! # use serde_versions_derive::serde_with_version;
-//! #[serde_with_version(3)]
+//! # use serde_versions_derive::version;
+//! #[version(3)]
 //! #[derive(Clone, Serialize, Deserialize)]
 //! struct S {
 //!     i: i32,
@@ -37,6 +37,8 @@
 //! 
 //! // plus implementations of To, From and to_versioned() for S
 //! ```
+//! 
+//! Note due to limitations of `#[serde(to, from)]` this does not support structs with type parameters.
 //!  
 
 use proc_macro::TokenStream;
@@ -50,7 +52,7 @@ use syn::{parse::Parser, parse_macro_input, DeriveInput, LitInt};
 /// See crate doc for example.
 /// 
 #[proc_macro_attribute]
-pub fn serde_with_version(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
     let original_ast = parse_macro_input!(item as DeriveInput);
     let mut versioned_ast = original_ast.clone();
 
