@@ -54,16 +54,25 @@ use syn::{parse::Parser, parse_macro_input, DeriveInput, LitInt};
 #[proc_macro_attribute]
 pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
     let original_ast = parse_macro_input!(item as DeriveInput);
+
     let mut versioned_ast = original_ast.clone();
 
     let generics = original_ast.generics.clone();
     let version = parse_macro_input!(attr as LitInt);
     let struct_name = original_ast.ident.clone();
+    let struct_name_str = struct_name.to_string();
 
     // name is old struct name with V<version_number> appended
     let versioned_name = format_ident!("_{}v{}", original_ast.ident, version.to_string());
     let versioned_name_str = versioned_name.to_string();
     versioned_ast.ident = versioned_name.clone();
+
+    // we also need a copy of the original WITHOUT #[serde(into, from)] to prevent a circular dependency
+    // Without this it will infinitely recuse as it tries to serialize inner as the versioned which contains inner etc..
+    // Unfortunately this adds another type and a bunch of macro generated code but I can't see a way around it at this stage.
+    let mut base_ast = original_ast.clone();
+    base_ast.ident = format_ident!("_{}Base", original_ast.ident);
+    let base_name_string = base_ast.ident.to_string();
 
     match &mut versioned_ast.data {
         syn::Data::Struct(ref mut struct_data) => {
@@ -78,7 +87,7 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
                     );
                     fields.named.push(
                         syn::Field::parse_named
-                            .parse2(quote! { #[serde(flatten)] pub inner: #struct_name #generics })
+                            .parse2(quote! { #[serde(flatten, with = #base_name_string)] pub inner: #struct_name #generics })
                             .unwrap(),
                     );
                 }
@@ -88,6 +97,9 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
             return quote! {
                 #[serde(into = #versioned_name_str, from = #versioned_name_str)]
                 #original_ast
+
+                #[serde(remote = #struct_name_str)]
+                #base_ast
 
                 #versioned_ast
 
