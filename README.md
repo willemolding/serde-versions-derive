@@ -38,5 +38,17 @@ struct _Sv3 {
 // plus implementations of To, From and to_versioned() for S
 ```
 
+and will Serialize to:
+
+```json
+{
+	"version": 3,
+	"i": 0
+}
+```
+
+
+---
+
 Note due to limitations of `#[serde(to, from)]` this does not support structs with type parameters.
  
