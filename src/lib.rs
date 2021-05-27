@@ -14,6 +14,7 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // name is old struct name with V<version_number> appended
     let versioned_name = format_ident!("{}V{}", original_ast.ident, version.to_string());
+    let versioned_name_str = versioned_name.to_string();
     versioned_ast.ident = versioned_name.clone();
 
     match &mut versioned_ast.data {
@@ -27,7 +28,6 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
                             .parse2(quote! { pub version: u8 })
                             .unwrap(),
                     );
-                    // little bit of a hack. Original struct must derive Serialize and/or Deserialize
                     fields.named.push(
                         syn::Field::parse_named
                             .parse2(quote! { #[serde(flatten)] pub inner: #struct_name #generics })
@@ -38,7 +38,7 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
 
             return quote! {
-                #[serde(into = "SV1", from = "SV1")]
+                #[serde(into = #versioned_name_str, from = #versioned_name_str)]
                 #original_ast
 
                 #versioned_ast
@@ -66,6 +66,6 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
             .into();
         }
-        _ => panic!("`add_field` has to be used with structs "),
+        _ => panic!("`version` has to be used with structs "),
     }
 }
