@@ -16,7 +16,7 @@ fn to_versioned() {
 		b: true,
 		o: Some(8)
 	};
-	assert_eq!(s.to_versioned().version, 3);
+	assert_eq!(s.into_versioned().version, 3);
 }
 
 #[test]

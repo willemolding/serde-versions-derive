@@ -60,71 +60,76 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
     let generics = original_ast.generics.clone();
     let version = parse_macro_input!(attr as LitInt);
     let struct_name = original_ast.ident.clone();
-    let struct_name_str = struct_name.to_string();
 
     // name is old struct name with V<version_number> appended
     let versioned_name = format_ident!("_{}v{}", original_ast.ident, version.to_string());
     let versioned_name_str = versioned_name.to_string();
     versioned_ast.ident = versioned_name.clone();
 
-    // we also need a copy of the original WITHOUT #[serde(into, from)] to prevent a circular dependency
-    // Without this it will infinitely recuse as it tries to serialize inner as the versioned which contains inner etc..
-    // Unfortunately this adds another type and a bunch of macro generated code but I can't see a way around it at this stage.
-    let mut base_ast = original_ast.clone();
-    base_ast.ident = format_ident!("_{}Base", original_ast.ident);
-    let base_name_string = base_ast.ident.to_string();
-
     match &mut versioned_ast.data {
         syn::Data::Struct(ref mut struct_data) => {
             match &mut struct_data.fields {
                 // drop all the fields and replace with an `inner` and a `version`
                 syn::Fields::Named(fields) => {
-                    fields.named.clear();
-                    fields.named.push(
+
+
+                    // used to convert between unversioned and versioned
+                    let mut field_mapping = quote!();
+                    let mut field_mapping_back = quote!();
+                    for field in fields.named.iter() {
+                        let name = field.ident.as_ref().unwrap();
+                        field_mapping.extend(quote!(
+                            #name : self . #name,
+                        ));
+                        field_mapping_back.extend(quote!(
+                            #name : s . #name,
+                        ));
+                    }
+
+                    fields.named.insert(0, 
                         syn::Field::parse_named
-                            .parse2(quote! { pub version: u8 })
+                            .parse2(quote! { version: u8 })
                             .unwrap(),
                     );
-                    fields.named.push(
-                        syn::Field::parse_named
-                            .parse2(quote! { #[serde(flatten, with = #base_name_string)] pub inner: #struct_name #generics })
-                            .unwrap(),
-                    );
-                }
-                _ => (),
-            }
 
-            return quote! {
-                #[serde(into = #versioned_name_str, from = #versioned_name_str)]
-                #original_ast
+                    return quote! {
+                        #[serde(into = #versioned_name_str, from = #versioned_name_str)]
+                        #original_ast
 
-                #[serde(remote = #struct_name_str)]
-                #base_ast
+                        #versioned_ast
 
-                #versioned_ast
+                        impl #generics #struct_name #generics {
+                            pub fn into_versioned(self) -> #versioned_name #generics {
+                                #versioned_name #generics {
+                                    version: #version,
+                                    #field_mapping
+                                }
+                            }
+                        }
 
-                impl #generics #struct_name #generics {
-                    pub fn to_versioned(self) -> #versioned_name #generics {
-                        #versioned_name {
-                            version: #version,
-                            inner: self,
+                        impl #generics std::convert::Into<#versioned_name #generics> for #struct_name #generics {
+                            fn into(self) -> #versioned_name #generics {
+                                self.into_versioned()
+                            }
+                        }
+
+                        impl #generics std::convert::From<#versioned_name #generics> for #struct_name #generics {
+                            fn from(s: #versioned_name #generics) -> #struct_name #generics {
+                                #struct_name #generics {
+                                    #field_mapping_back
+                                }
+                            }
                         }
                     }
-                }
+                    .into();
 
-                impl #generics std::convert::Into<#versioned_name #generics> for #struct_name #generics {
-                    fn into(self) -> #versioned_name #generics {
-                        self.to_versioned()
-                    }
-                }
 
-                impl #generics std::convert::From<#versioned_name #generics> for #struct_name #generics {
-                    fn from(s: #versioned_name #generics) -> #struct_name #generics {
-                        s.inner
-                    }
+
                 }
+                _ => panic!(""),
             }
-            .into();
+
+
         }
         _ => panic!("`version` has to be used with structs "),
     }
