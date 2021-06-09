@@ -69,7 +69,7 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
     match &mut versioned_ast.data {
         syn::Data::Struct(ref mut struct_data) => {
             match &mut struct_data.fields {
-                // drop all the fields and replace with an `inner` and a `version`
+                // for named field structs e.g. { A: int }
                 syn::Fields::Named(fields) => {
                     // used to convert between unversioned and versioned
                     let mut field_mapping = quote!();
@@ -122,7 +122,64 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
                     })
                     .into()
                 }
-                _ => panic!(""),
+                // for unnamed fields e.g. A(int)
+                syn::Fields::Unnamed(fields) => {
+                     // used to convert between unversioned and versioned
+                    let mut field_mapping = quote!();
+                    let mut field_mapping_back = quote!();
+                    for (i, _) in fields.unnamed.iter().enumerate() {
+                        let index = syn::Index::from(i);
+                        let versioned_index = syn::Index::from(i+1);
+                        field_mapping.extend(quote!(
+                            self . #index,
+                        ));
+                        field_mapping_back.extend(quote!(
+                            s . #versioned_index,
+                        ));
+                    }
+
+                    fields.unnamed.insert(
+                        0,
+                        syn::Field::parse_unnamed
+                            .parse2(quote! { u8 })
+                            .unwrap(),
+                    );
+
+                    (quote! {
+                        #[serde(into = #versioned_name_str, from = #versioned_name_str)]
+                        #original_ast
+
+                        #versioned_ast
+
+                        impl #generics #struct_name #generics {
+                            pub fn into_versioned(self) -> #versioned_name #generics {
+                                #versioned_name #generics (
+                                    #version,
+                                    #field_mapping
+                                )
+                            }
+                        }
+
+                        impl #generics std::convert::From<#struct_name #generics> for #versioned_name #generics {
+                            fn from(s: #struct_name #generics) -> #versioned_name #generics {
+                                s.into_versioned()
+                            }
+                        }
+
+                        impl #generics std::convert::From<#versioned_name #generics> for #struct_name #generics {
+                            fn from(s: #versioned_name #generics) -> #struct_name #generics {
+                                #struct_name #generics (
+                                    #field_mapping_back
+                                )
+                            }
+                        }
+                    })
+                    .into()                   
+                }
+                // for unit types e.g. A()
+                syn::Fields::Unit => {
+                    unimplemented!()
+                }
             }
         }
         _ => panic!("`version` has to be used with structs "),

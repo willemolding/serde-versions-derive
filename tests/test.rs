@@ -9,6 +9,10 @@ struct S {
     o: Option<u8>,
 }
 
+#[version(33)]
+#[derive(Clone, Serialize, Deserialize)]
+struct SS (i32);
+
 #[test]
 fn to_versioned() {
     let s = S {
@@ -30,4 +34,13 @@ fn to_json_has_version() {
     println!("{}", json_str_s); // version was added when serializing
     let json_s: serde_json::Value = serde_json::from_str(&json_str_s).unwrap();
     assert_eq!(json_s["version"], 3);
+}
+
+#[test]
+fn to_json_has_version_unnamed() {
+    let s = SS(123);
+    let json_str_s = serde_json::to_string(&s).unwrap();
+    println!("{}", json_str_s); // version was added when serializing
+    let json_s: serde_json::Value = serde_json::from_str(&json_str_s).unwrap();
+    assert_eq!(json_s[0], 33);
 }
