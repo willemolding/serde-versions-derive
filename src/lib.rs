@@ -1,5 +1,5 @@
 //! # Serde Versions Derive
-//! 
+//!
 //!  `serde_versions_derive` exports an attribute macro that adds versioning support for structs.
 //!  
 //!  When serializing a named field struct it will automatically add a new field containing the version.
@@ -9,7 +9,7 @@
 //!  Internally this new struct uses `#[serde(flatten)]` to serialize as expected.
 //!  The original struct uses `#[serde(to, from)]` to add the version field when serializing and remove it when deserializing.
 //!
-//! usage: 
+//! usage:
 //! ```no_run
 //! # use serde::{Deserialize, Serialize};
 //! # use serde_versions_derive::version;
@@ -19,7 +19,7 @@
 //!     i: i32,
 //! }
 //! ```
-//! 
+//!
 //! This produces the following
 //! ```ignore
 //! #[derive(Clone, Serialize, Deserialize)]
@@ -27,17 +27,17 @@
 //! struct S {
 //!     i: i32,
 //! }
-//! 
+//!
 //! #[derive(Clone, Serialize, Deserialize)]
 //! struct _Sv3 {
 //!     version: u8,
 //!     #[serde(flatten)]
 //!     inner: S
 //! }
-//! 
+//!
 //! // plus implementations of To, From and to_versioned() for S
 //! ```
-//! 
+//!
 //! Note due to limitations of `#[serde(to, from)]` this does not support structs with type parameters.
 //!  
 
@@ -48,9 +48,9 @@ use syn::{parse::Parser, parse_macro_input, DeriveInput, LitInt};
 
 /// Generate a new struct with a version field and ensure this struct is converted to that form before
 /// serialization.
-/// 
+///
 /// See crate doc for example.
-/// 
+///
 #[proc_macro_attribute]
 pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
     let original_ast = parse_macro_input!(item as DeriveInput);
@@ -71,8 +71,6 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
             match &mut struct_data.fields {
                 // drop all the fields and replace with an `inner` and a `version`
                 syn::Fields::Named(fields) => {
-
-
                     // used to convert between unversioned and versioned
                     let mut field_mapping = quote!();
                     let mut field_mapping_back = quote!();
@@ -86,13 +84,14 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
                         ));
                     }
 
-                    fields.named.insert(0, 
+                    fields.named.insert(
+                        0,
                         syn::Field::parse_named
                             .parse2(quote! { version: u8 })
                             .unwrap(),
                     );
 
-                    return quote! {
+                    (quote! {
                         #[serde(into = #versioned_name_str, from = #versioned_name_str)]
                         #original_ast
 
@@ -107,9 +106,9 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
                             }
                         }
 
-                        impl #generics std::convert::Into<#versioned_name #generics> for #struct_name #generics {
-                            fn into(self) -> #versioned_name #generics {
-                                self.into_versioned()
+                        impl #generics std::convert::From<#struct_name #generics> for #versioned_name #generics {
+                            fn from(s: #struct_name #generics) -> #versioned_name #generics {
+                                s.into_versioned()
                             }
                         }
 
@@ -120,16 +119,11 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
                                 }
                             }
                         }
-                    }
-                    .into();
-
-
-
+                    })
+                    .into()
                 }
                 _ => panic!(""),
             }
-
-
         }
         _ => panic!("`version` has to be used with structs "),
     }
