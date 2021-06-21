@@ -38,7 +38,19 @@
 //! // plus implementations of To, From and to_versioned() for S
 //! ```
 //!
-//! Note due to limitations of `#[serde(to, from)]` this does not support structs with type parameters.
+//! This supports types with type parameters however these must have a trait bound
+//! to implement Clone
+//! 
+//! e.g.:
+//! ```no_run
+//! # use serde::{Deserialize, Serialize};
+//! # use serde_versions_derive::version;
+//! #[version(3)]
+//! #[derive(Clone, Serialize, Deserialize)]
+//! struct S<T: Clone> {
+//!     t: T,
+//! }
+//! ```
 //!  
 
 use proc_macro::TokenStream;
