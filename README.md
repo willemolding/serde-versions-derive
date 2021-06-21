@@ -50,5 +50,15 @@ and will Serialize to:
 
 ---
 
-Note due to limitations of `#[serde(to, from)]` this does not support structs with type parameters.
- 
+This supports types with type parameters however these must have a trait bound
+to implement Clone
+
+e.g.:
+```rust
+# use serde::{Deserialize, Serialize};
+# use serde_versions_derive::version;
+#[version(3)]
+#[derive(Clone, Serialize, Deserialize)]
+struct S<T: Clone> {
+    t: T,
+} 
