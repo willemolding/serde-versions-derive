@@ -57,13 +57,13 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut versioned_ast = original_ast.clone();
 
-    let generics = original_ast.generics.clone();
+    let (impl_generics, generics, _) = original_ast.generics.split_for_impl();
     let version = parse_macro_input!(attr as LitInt);
     let struct_name = original_ast.ident.clone();
 
     // name is old struct name with V<version_number> appended
     let versioned_name = format_ident!("_{}v{}", original_ast.ident, version.to_string());
-    let versioned_name_str = versioned_name.to_string();
+    let versioned_name_str = format!("{}{}", versioned_name.to_string(), quote!{#generics}.to_string());
     versioned_ast.ident = versioned_name.clone();
 
     match &mut versioned_ast.data {
@@ -97,24 +97,24 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                         #versioned_ast
 
-                        impl #generics #struct_name #generics {
+                        impl #impl_generics #struct_name #generics {
                             pub fn into_versioned(self) -> #versioned_name #generics {
-                                #versioned_name #generics {
+                                #versioned_name {
                                     version: #version,
                                     #field_mapping
                                 }
                             }
                         }
 
-                        impl #generics std::convert::From<#struct_name #generics> for #versioned_name #generics {
+                        impl #impl_generics std::convert::From<#struct_name #generics> for #versioned_name #generics {
                             fn from(s: #struct_name #generics) -> #versioned_name #generics {
                                 s.into_versioned()
                             }
                         }
 
-                        impl #generics std::convert::From<#versioned_name #generics> for #struct_name #generics {
+                        impl #impl_generics std::convert::From<#versioned_name #generics> for #struct_name #generics {
                             fn from(s: #versioned_name #generics) -> #struct_name #generics {
-                                #struct_name #generics {
+                                #struct_name {
                                     #field_mapping_back
                                 }
                             }
@@ -151,24 +151,24 @@ pub fn version(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                         #versioned_ast
 
-                        impl #generics #struct_name #generics {
+                        impl #impl_generics #struct_name #generics {
                             pub fn into_versioned(self) -> #versioned_name #generics {
-                                #versioned_name #generics (
+                                #versioned_name (
                                     #version,
                                     #field_mapping
                                 )
                             }
                         }
 
-                        impl #generics std::convert::From<#struct_name #generics> for #versioned_name #generics {
+                        impl #impl_generics std::convert::From<#struct_name #generics> for #versioned_name #generics {
                             fn from(s: #struct_name #generics) -> #versioned_name #generics {
                                 s.into_versioned()
                             }
                         }
 
-                        impl #generics std::convert::From<#versioned_name #generics> for #struct_name #generics {
+                        impl #impl_generics std::convert::From<#versioned_name #generics> for #struct_name #generics {
                             fn from(s: #versioned_name #generics) -> #struct_name #generics {
-                                #struct_name #generics (
+                                #struct_name (
                                     #field_mapping_back
                                 )
                             }

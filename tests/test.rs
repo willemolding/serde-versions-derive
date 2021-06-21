@@ -11,7 +11,7 @@ struct S {
 
 #[version(33)]
 #[derive(Clone, Serialize, Deserialize)]
-struct SS (i32);
+struct SS<T: Clone> (T);
 
 #[test]
 fn to_versioned() {
