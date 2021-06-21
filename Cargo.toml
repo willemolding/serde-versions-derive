@@ -1,6 +1,6 @@
 [package]
 name = "serde-versions-derive"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["Willem Olding <willemolding@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0"
