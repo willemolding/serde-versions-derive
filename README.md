@@ -31,8 +31,7 @@ struct S {
 #[derive(Clone, Serialize, Deserialize)]
 struct _Sv3 {
     version: u8,
-    #[serde(flatten)]
-    inner: S
+    i: i32,
 }
 
 // plus implementations of To, From and to_versioned() for S
